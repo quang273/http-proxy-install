@@ -3,12 +3,12 @@ set -euo pipefail
 
 REGIONS=("asia-northeast1" "asia-northeast2")
 ZONE_SUFFIX="a"
-USERNAME="khoitran"
-PASSWORD="khoi1"
+USERNAME="soncoi"
+PASSWORD="zxcv123"
 PORT=8888
 
-BOT_TOKEN="7938057750:AAG8LSryy716gmDaoP36IjpdCXtycHDtKKM"
-USER_ID="1053423800"
+BOT_TOKEN="8002752987:AAGiuvuaiOAHr8UF1XCK5sFkqRH4n7bwcDQ"
+USER_ID="6456880948"
 PROJECT_ID=${PROJECT_ID:-$(gcloud config get-value project)}
 
 send_to_telegram(){
@@ -60,4 +60,3 @@ for region in "${REGIONS[@]}"; do
 done
 
 send_to_telegram "🧩 Danh sách proxy dự án [$PROJECT_ID]:\n\n$ALL_PROXY"
-
