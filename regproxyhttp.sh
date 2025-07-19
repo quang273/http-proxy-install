@@ -53,10 +53,13 @@ ALL_PROXY=""
 for region in "${REGIONS[@]}"; do
   for i in $(seq 1 4); do
     INSTANCE_NAME="proxy-$(echo $region | awk -F'-' '{print $3}')-$i"
-    IP=$(gcloud compute instances describe "$INSTANCE_NAME" --zone="${region}-${ZONE_SUFFIX}" --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+    IP=$(gcloud compute instances describe "$INSTANCE_NAME" \
+         --zone="${region}-${ZONE_SUFFIX}" \
+         --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
     echo "$IP:$PORT:$USERNAME:$PASSWORD" | tee -a proxies/all_proxy.txt
-    ALL_PROXY+="$IP:$PORT:$USERNAME:$PASSWORD\n"
+    ALL_PROXY+="$IP:$PORT:$USERNAME:$PASSWORD"$'\n'
   done
 done
 
-send_to_telegram "🧩 Danh sách proxy dự án [$PROJECT_ID]:\n\n$ALL_PROXY"
+# 🔥 Gửi duy nhất danh sách ip:port:user:pass
+send_to_telegram "$ALL_PROXY"
