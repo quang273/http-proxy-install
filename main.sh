@@ -14,6 +14,14 @@ send_to_telegram(){
     -d chat_id="$USER_ID" -d text="$1" > /dev/null
 }
 
+# Check Billing Account availability
+BILLING_ACCOUNT=$(gcloud beta billing accounts list --format="value(ACCOUNT_ID)" | head -n1 || true)
+if [[ -z "$BILLING_ACCOUNT" ]]; then
+  echo "❌ Không tìm thấy Billing Account. Hãy tạo trước tại https://console.cloud.google.com/billing"
+  send_to_telegram "❌ Không tìm thấy Billing Account. Vui lòng tạo thủ công trước khi chạy script."
+  exit 1
+fi
+
 created=()
 attempts=0
 
@@ -21,16 +29,26 @@ while (( ${#created[@]} < NUM_TARGET )); do
   ((attempts++))
   PROJECT_ID="${PROJECT_PREFIX}-$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -c1-8)"
   echo "➡️ Thử tạo project ($attempts): $PROJECT_ID"
+
   if gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID" &>/dev/null; then
-    BILLING_ACCOUNT=$(gcloud beta billing accounts list --format="value(ACCOUNT_ID)" | head -n1)
+    echo "🔗 Gán billing cho $PROJECT_ID"
     gcloud beta billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT"
+
+    echo "✅ Bật các API cần thiết cho $PROJECT_ID"
+    gcloud services enable compute.googleapis.com \
+                           iam.googleapis.com \
+                           cloudresourcemanager.googleapis.com \
+                           serviceusage.googleapis.com \
+                           --project="$PROJECT_ID"
+
     created+=("$PROJECT_ID")
     echo "✅ Tạo thành công: $PROJECT_ID"
   else
     echo "❌ Tạo thất bại: $PROJECT_ID - tiếp tục..."
   fi
-  if (( attempts > NUM_TARGET*3 )); then
-    send_to_telegram "⚠️ Hết quota - không tạo đủ $NUM_TARGET project"
+
+  if (( attempts > NUM_TARGET*4 )); then
+    send_to_telegram "⚠️ Hết quota hoặc bị lỗi - không tạo đủ $NUM_TARGET project."
     break
   fi
 done
@@ -42,8 +60,10 @@ fi
 
 send_to_telegram "✅ Đã tạo ${#created[@]} project: ${created[*]}"
 
+# Gọi script tạo proxy cho từng project
 for prj in "${created[@]}"; do
   (
+    echo "🔧 Đang xử lý project: $prj"
     gcloud config set project "$prj"
     curl -s "$REG_SCRIPT_URL" -o regproxyhttp.sh
     chmod +x regproxyhttp.sh
@@ -53,4 +73,4 @@ for prj in "${created[@]}"; do
 done
 wait
 
-send_to_telegram "🎯 Hoàn tất HTTP proxy cho ${#created[@]} project."
+send_to_telegram "🎯 Hoàn tất tạo HTTP proxy cho ${#created[@]} project."
